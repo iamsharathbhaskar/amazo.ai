@@ -1,0 +1,39 @@
+# Environment
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Amazo runtime files
+amazo.log
+my-core/my-config.yaml
+my-core/my-config.yaml.gpg
+my-core/my-heartbeat.txt
+
+# User directories (will be created on first run)
+my-journals/
+my-archive/
+my-contacts/
+my-workshop/
+my-projects/
+my-post-its/
+
+# Distribution archives
+*.tar.gz
+*.zip
