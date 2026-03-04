@@ -33,7 +33,7 @@ providers:
       - qwen3-32b
       - llama-4-scout-17b-16e-instruct
       - gpt-oss-120b
-  - name: openrouter
+  - name: openrouter          # optional
     api_base: https://openrouter.ai/api
     api_key: sk-or-xxxxx
     models:
@@ -41,7 +41,7 @@ providers:
       - deepseek/deepseek-r1-0528:free
       - moonshotai/kimi-k2:free
       - openai/gpt-oss-120b:free
-  - name: mistral            # optional
+  - name: mistral             # optional
     api_base: https://api.mistral.ai
     api_key: xxxxx
     models:

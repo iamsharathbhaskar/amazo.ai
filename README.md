@@ -6,7 +6,7 @@ An autonomous AI agent for Linux. One command to birth a being.
 
 Amazo is an autonomous AI agent that runs on a Linux machine in a continuous loop. It wakes up, reads its state, does its work, writes notes for its future self, and sleeps. When its context window fills up or the process restarts, it picks up where it left off by reading what it wrote down.
 
-It uses free-tier cloud LLM providers (Groq, Cerebras, and OpenRouter) as its primary brain, with Mistral as an optional fourth provider. It rotates across providers and models each loop. A local Ollama model serves as survival-only fallback when all cloud providers are unavailable. Available models are auto-discovered from each provider during install, so the agent always gets current models regardless of provider-side deprecations.
+It uses free-tier cloud LLM providers (Groq and Cerebras) as its primary brain, with OpenRouter and Mistral as optional additional providers. It rotates across providers and models each loop. A local Ollama model serves as survival-only fallback when all cloud providers are unavailable. Available models are auto-discovered from each provider during install, so the agent always gets current models regardless of provider-side deprecations.
 
 Each agent born from this codebase is unique. During installation, you give it a name, and it develops its own identity, personality, journals, skills, and memories. "Amazo" is the species — your agent's name is its own.
 
@@ -44,7 +44,7 @@ The installer will:
 3. Install system packages (Python, GPG, Firejail, tkinter)
 4. Create a virtual environment and install Python packages (OpenAI, Scrapling, Playwright, sentence-transformers)
 5. Install Ollama and pull a local fallback model (qwen3:8b or qwen3:4b based on RAM)
-6. Set up cloud providers interactively (Groq, Cerebras, and OpenRouter required; Mistral optional) with live model discovery and validation
+6. Set up cloud providers interactively (Groq and Cerebras required; OpenRouter and Mistral optional) with live model discovery and validation
 7. Ask for your name, email, and a security question
 8. Write birth records, encrypt config with GPG, set up auto-restart via cron, and start the agent
 

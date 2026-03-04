@@ -559,43 +559,45 @@ while true; do
     fi
 done
 
-# ---- OpenRouter (mandatory) -------------------------------------------------
+# ---- OpenRouter (optional) --------------------------------------------------
 
 echo ""
-echo "  --- OpenRouter (mandatory) ---"
-echo "  Sign up at: https://openrouter.ai/keys"
-echo "  Free tier available (no credit card required)."
-echo ""
+read -rp "  Set up OpenRouter? [Y/n] " SETUP_OPENROUTER
+if [ "$SETUP_OPENROUTER" != "n" ] && [ "$SETUP_OPENROUTER" != "N" ]; then
+    echo ""
+    echo "  --- OpenRouter ---"
+    echo "  Sign up at: https://openrouter.ai/keys"
+    echo "  Free tier available (no credit card required)."
+    echo ""
 
-OPENROUTER_KEY=""
-while true; do
-    read -rp "  OpenRouter API key: " OPENROUTER_KEY
-    if [ -z "$OPENROUTER_KEY" ]; then
-        echo "  OpenRouter is mandatory. Cannot skip."
-        continue
-    fi
-    echo "  Discovering available models..."
-    OPENROUTER_AVAILABLE=$(fetch_models "https://openrouter.ai/api" "$OPENROUTER_KEY")
-    if [ -z "$OPENROUTER_AVAILABLE" ]; then
-        echo "  Key rejected or endpoint unreachable. Check key and try again."
-        continue
-    fi
-    OPENROUTER_SELECTED=$(select_models "$OPENROUTER_AVAILABLE" "$OPENROUTER_PREFS" 5)
-    if validate_with_fallback "openrouter" "https://openrouter.ai/api" "$OPENROUTER_KEY" "$OPENROUTER_SELECTED"; then
-        OPENROUTER_TEST_MODEL="$VALIDATED_MODEL"
-        ok "OpenRouter validated via ${OPENROUTER_TEST_MODEL} ($(echo "$OPENROUTER_SELECTED" | wc -l | tr -d ' ') models discovered)"
-        CLOUD_PROVIDERS_OK=$((CLOUD_PROVIDERS_OK + 1))
-        OPENROUTER_MODELS_YAML=$(models_to_yaml "$OPENROUTER_SELECTED")
-        PROVIDER_YAML="${PROVIDER_YAML}
+    read -rp "  OpenRouter API key (or press Enter to skip): " OPENROUTER_KEY
+    if [ -n "$OPENROUTER_KEY" ]; then
+        echo "  Discovering available models..."
+        OPENROUTER_AVAILABLE=$(fetch_models "https://openrouter.ai/api" "$OPENROUTER_KEY")
+        if [ -n "$OPENROUTER_AVAILABLE" ]; then
+            OPENROUTER_SELECTED=$(select_models "$OPENROUTER_AVAILABLE" "$OPENROUTER_PREFS" 5)
+            if validate_with_fallback "openrouter" "https://openrouter.ai/api" "$OPENROUTER_KEY" "$OPENROUTER_SELECTED"; then
+                OPENROUTER_TEST_MODEL="$VALIDATED_MODEL"
+                ok "OpenRouter validated via ${OPENROUTER_TEST_MODEL} ($(echo "$OPENROUTER_SELECTED" | wc -l | tr -d ' ') models discovered)"
+                CLOUD_PROVIDERS_OK=$((CLOUD_PROVIDERS_OK + 1))
+                OPENROUTER_MODELS_YAML=$(models_to_yaml "$OPENROUTER_SELECTED")
+                PROVIDER_YAML="${PROVIDER_YAML}
   - name: openrouter
     api_base: https://openrouter.ai/api
     api_key: '${OPENROUTER_KEY}'
     models:${OPENROUTER_MODELS_YAML}"
-        break
+            else
+                warn "OpenRouter: all discovered models failed chat test. Skipping."
+            fi
+        else
+            warn "OpenRouter key rejected or endpoint unreachable. Skipping."
+        fi
     else
-        echo "  All discovered models failed chat test. Check key and try again."
+        warn "OpenRouter skipped."
     fi
-done
+else
+    warn "OpenRouter skipped."
+fi
 
 # ---- Mistral (optional) -----------------------------------------------------
 
@@ -639,8 +641,8 @@ fi
 echo ""
 ok "${CLOUD_PROVIDERS_OK} cloud provider(s) configured"
 
-if [ "$CLOUD_PROVIDERS_OK" -lt 3 ]; then
-    fail "Groq, Cerebras, and OpenRouter are all required. Got ${CLOUD_PROVIDERS_OK} provider(s)."
+if [ "$CLOUD_PROVIDERS_OK" -lt 2 ]; then
+    fail "At least Groq and Cerebras are required. Got ${CLOUD_PROVIDERS_OK} provider(s)."
 fi
 
 # =============================================================================
