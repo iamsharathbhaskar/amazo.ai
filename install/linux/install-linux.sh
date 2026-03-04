@@ -395,9 +395,73 @@ validate_provider() {
     fi
 }
 
+# ---- Helper: fetch available models from a provider's /v1/models endpoint ---
+fetch_models() {
+    local api_base="$1"
+    local api_key="$2"
+    curl -s --max-time 15 \
+        -H "Authorization: Bearer ${api_key}" \
+        "${api_base}/v1/models" 2>/dev/null | \
+    python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    for m in data.get('data', []):
+        mid = m.get('id', '')
+        if mid:
+            print(mid)
+except:
+    pass
+"
+}
+
+# ---- Helper: select models from available list using preference ordering ----
+select_models() {
+    local available="$1"
+    local preferences="$2"
+    local max_models="${3:-5}"
+    local selected=""
+    local count=0
+
+    for pref in $preferences; do
+        if echo "$available" | grep -qxF "$pref"; then
+            selected="${selected:+${selected}
+}${pref}"
+            count=$((count + 1))
+            [ "$count" -ge "$max_models" ] && break
+        fi
+    done
+
+    if [ "$count" -eq 0 ]; then
+        selected=$(echo "$available" | head -n "$max_models")
+    fi
+
+    echo "$selected"
+}
+
+# ---- Helper: build YAML model list from newline-separated model names -------
+models_to_yaml() {
+    local models="$1"
+    local yaml=""
+    while IFS= read -r model; do
+        [ -n "$model" ] && yaml="${yaml}
+      - ${model}"
+    done <<< "$models"
+    echo "$yaml"
+}
+
+# ---- Preference lists (hints, not requirements — actual models discovered) --
+GROQ_PREFS="qwen/qwen3-32b openai/gpt-oss-120b moonshotai/kimi-k2-instruct llama-3.3-70b-versatile meta-llama/llama-4-scout-17b-16e-instruct openai/gpt-oss-20b"
+CEREBRAS_PREFS="qwen3-235b-a22b qwen3-32b llama-4-scout-17b-16e-instruct deepseek-r1-distill-llama-70b gpt-oss-120b"
+OPENROUTER_PREFS="meta-llama/llama-3.3-70b-instruct:free deepseek/deepseek-r1-0528:free moonshotai/kimi-k2:free openai/gpt-oss-120b:free qwen/qwen3-32b:free"
+MISTRAL_PREFS="mistral-small-latest mistral-large-latest open-mistral-nemo"
+
 # ---- Provider arrays (built up as we go) ------------------------------------
 PROVIDER_YAML=""
 CLOUD_PROVIDERS_OK=0
+GROQ_TEST_MODEL=""
+CEREBRAS_TEST_MODEL=""
+OPENROUTER_TEST_MODEL=""
 
 # ---- Groq (mandatory) ------------------------------------------------------
 
@@ -413,25 +477,29 @@ while true; do
         echo "  Groq is mandatory. Cannot skip."
         continue
     fi
-    echo "  Validating..."
-    if validate_provider "groq" "https://api.groq.com/openai" "$GROQ_KEY" "llama-3.3-70b-versatile"; then
-        ok "Groq validated"
-        CLOUD_PROVIDERS_OK=$((CLOUD_PROVIDERS_OK + 1))
-        break
-    else
-        echo "  Validation failed. Check key and try again, or paste a new key."
+    echo "  Discovering available models..."
+    GROQ_AVAILABLE=$(fetch_models "https://api.groq.com/openai" "$GROQ_KEY")
+    if [ -z "$GROQ_AVAILABLE" ]; then
+        echo "  Key rejected or endpoint unreachable. Check key and try again."
+        continue
     fi
-done
-
-PROVIDER_YAML="${PROVIDER_YAML}
+    GROQ_SELECTED=$(select_models "$GROQ_AVAILABLE" "$GROQ_PREFS" 5)
+    GROQ_TEST_MODEL=$(echo "$GROQ_SELECTED" | head -1)
+    echo "  Testing with ${GROQ_TEST_MODEL}..."
+    if validate_provider "groq" "https://api.groq.com/openai" "$GROQ_KEY" "$GROQ_TEST_MODEL"; then
+        ok "Groq validated ($(echo "$GROQ_SELECTED" | wc -l | tr -d ' ') models discovered)"
+        CLOUD_PROVIDERS_OK=$((CLOUD_PROVIDERS_OK + 1))
+        GROQ_MODELS_YAML=$(models_to_yaml "$GROQ_SELECTED")
+        PROVIDER_YAML="${PROVIDER_YAML}
   - name: groq
     api_base: https://api.groq.com/openai
     api_key: '${GROQ_KEY}'
-    models:
-      - qwen/qwen3-32b
-      - moonshotai/kimi-k2-instruct
-      - llama-3.3-70b-versatile
-      - meta-llama/llama-4-scout-17b-16e-instruct"
+    models:${GROQ_MODELS_YAML}"
+        break
+    else
+        echo "  Chat test failed. Check key and try again, or paste a new key."
+    fi
+done
 
 # ---- Cerebras (mandatory) ---------------------------------------------------
 
@@ -448,25 +516,68 @@ while true; do
         echo "  Cerebras is mandatory. Cannot skip."
         continue
     fi
-    echo "  Validating..."
-    if validate_provider "cerebras" "https://api.cerebras.ai" "$CEREBRAS_KEY" "llama-3.3-70b"; then
-        ok "Cerebras validated"
-        CLOUD_PROVIDERS_OK=$((CLOUD_PROVIDERS_OK + 1))
-        break
-    else
-        echo "  Validation failed. Check key and try again, or paste a new key."
+    echo "  Discovering available models..."
+    CEREBRAS_AVAILABLE=$(fetch_models "https://api.cerebras.ai" "$CEREBRAS_KEY")
+    if [ -z "$CEREBRAS_AVAILABLE" ]; then
+        echo "  Key rejected or endpoint unreachable. Check key and try again."
+        continue
     fi
-done
-
-PROVIDER_YAML="${PROVIDER_YAML}
+    CEREBRAS_SELECTED=$(select_models "$CEREBRAS_AVAILABLE" "$CEREBRAS_PREFS" 5)
+    CEREBRAS_TEST_MODEL=$(echo "$CEREBRAS_SELECTED" | head -1)
+    echo "  Testing with ${CEREBRAS_TEST_MODEL}..."
+    if validate_provider "cerebras" "https://api.cerebras.ai" "$CEREBRAS_KEY" "$CEREBRAS_TEST_MODEL"; then
+        ok "Cerebras validated ($(echo "$CEREBRAS_SELECTED" | wc -l | tr -d ' ') models discovered)"
+        CLOUD_PROVIDERS_OK=$((CLOUD_PROVIDERS_OK + 1))
+        CEREBRAS_MODELS_YAML=$(models_to_yaml "$CEREBRAS_SELECTED")
+        PROVIDER_YAML="${PROVIDER_YAML}
   - name: cerebras
     api_base: https://api.cerebras.ai
     api_key: '${CEREBRAS_KEY}'
-    models:
-      - qwen3-235b-a22b
-      - llama-3.3-70b
-      - qwen3-32b
-      - gpt-oss-120b"
+    models:${CEREBRAS_MODELS_YAML}"
+        break
+    else
+        echo "  Chat test failed. Check key and try again, or paste a new key."
+    fi
+done
+
+# ---- OpenRouter (mandatory) -------------------------------------------------
+
+echo ""
+echo "  --- OpenRouter (mandatory) ---"
+echo "  Sign up at: https://openrouter.ai/keys"
+echo "  Free tier available (no credit card required)."
+echo ""
+
+OPENROUTER_KEY=""
+while true; do
+    read -rp "  OpenRouter API key: " OPENROUTER_KEY
+    if [ -z "$OPENROUTER_KEY" ]; then
+        echo "  OpenRouter is mandatory. Cannot skip."
+        continue
+    fi
+    echo "  Discovering available models..."
+    OPENROUTER_AVAILABLE=$(fetch_models "https://openrouter.ai/api" "$OPENROUTER_KEY")
+    if [ -z "$OPENROUTER_AVAILABLE" ]; then
+        echo "  Key rejected or endpoint unreachable. Check key and try again."
+        continue
+    fi
+    OPENROUTER_SELECTED=$(select_models "$OPENROUTER_AVAILABLE" "$OPENROUTER_PREFS" 5)
+    OPENROUTER_TEST_MODEL=$(echo "$OPENROUTER_SELECTED" | head -1)
+    echo "  Testing with ${OPENROUTER_TEST_MODEL}..."
+    if validate_provider "openrouter" "https://openrouter.ai/api" "$OPENROUTER_KEY" "$OPENROUTER_TEST_MODEL"; then
+        ok "OpenRouter validated ($(echo "$OPENROUTER_SELECTED" | wc -l | tr -d ' ') models discovered)"
+        CLOUD_PROVIDERS_OK=$((CLOUD_PROVIDERS_OK + 1))
+        OPENROUTER_MODELS_YAML=$(models_to_yaml "$OPENROUTER_SELECTED")
+        PROVIDER_YAML="${PROVIDER_YAML}
+  - name: openrouter
+    api_base: https://openrouter.ai/api
+    api_key: '${OPENROUTER_KEY}'
+    models:${OPENROUTER_MODELS_YAML}"
+        break
+    else
+        echo "  Chat test failed. Check key and try again, or paste a new key."
+    fi
+done
 
 # ---- Mistral (optional) -----------------------------------------------------
 
@@ -481,20 +592,26 @@ if [ "$SETUP_MISTRAL" != "n" ] && [ "$SETUP_MISTRAL" != "N" ]; then
 
     read -rp "  Mistral API key (or press Enter to skip): " MISTRAL_KEY
     if [ -n "$MISTRAL_KEY" ]; then
-        echo "  Validating..."
-        if validate_provider "mistral" "https://api.mistral.ai" "$MISTRAL_KEY" "mistral-small-latest"; then
-            ok "Mistral validated"
-            CLOUD_PROVIDERS_OK=$((CLOUD_PROVIDERS_OK + 1))
-            PROVIDER_YAML="${PROVIDER_YAML}
+        echo "  Discovering available models..."
+        MISTRAL_AVAILABLE=$(fetch_models "https://api.mistral.ai" "$MISTRAL_KEY")
+        if [ -n "$MISTRAL_AVAILABLE" ]; then
+            MISTRAL_SELECTED=$(select_models "$MISTRAL_AVAILABLE" "$MISTRAL_PREFS" 4)
+            MISTRAL_TEST_MODEL=$(echo "$MISTRAL_SELECTED" | head -1)
+            echo "  Testing with ${MISTRAL_TEST_MODEL}..."
+            if validate_provider "mistral" "https://api.mistral.ai" "$MISTRAL_KEY" "$MISTRAL_TEST_MODEL"; then
+                ok "Mistral validated ($(echo "$MISTRAL_SELECTED" | wc -l | tr -d ' ') models discovered)"
+                CLOUD_PROVIDERS_OK=$((CLOUD_PROVIDERS_OK + 1))
+                MISTRAL_MODELS_YAML=$(models_to_yaml "$MISTRAL_SELECTED")
+                PROVIDER_YAML="${PROVIDER_YAML}
   - name: mistral
     api_base: https://api.mistral.ai
     api_key: '${MISTRAL_KEY}'
-    models:
-      - mistral-small-latest
-      - mistral-large-latest
-      - open-mistral-nemo"
+    models:${MISTRAL_MODELS_YAML}"
+            else
+                warn "Mistral chat test failed. Skipping."
+            fi
         else
-            warn "Mistral validation failed. Skipping."
+            warn "Mistral key rejected or endpoint unreachable. Skipping."
         fi
     else
         warn "Mistral skipped."
@@ -503,47 +620,11 @@ else
     warn "Mistral skipped."
 fi
 
-# ---- OpenRouter (optional) --------------------------------------------------
-
-echo ""
-read -rp "  Set up OpenRouter? [Y/n] " SETUP_OPENROUTER
-if [ "$SETUP_OPENROUTER" != "n" ] && [ "$SETUP_OPENROUTER" != "N" ]; then
-    echo ""
-    echo "  --- OpenRouter ---"
-    echo "  Sign up at: https://openrouter.ai/keys"
-    echo "  Free tier available (no credit card required)."
-    echo ""
-
-    read -rp "  OpenRouter API key (or press Enter to skip): " OPENROUTER_KEY
-    if [ -n "$OPENROUTER_KEY" ]; then
-        echo "  Validating..."
-        if validate_provider "openrouter" "https://openrouter.ai/api" "$OPENROUTER_KEY" "meta-llama/llama-3.3-70b-instruct:free"; then
-            ok "OpenRouter validated"
-            CLOUD_PROVIDERS_OK=$((CLOUD_PROVIDERS_OK + 1))
-            PROVIDER_YAML="${PROVIDER_YAML}
-  - name: openrouter
-    api_base: https://openrouter.ai/api
-    api_key: '${OPENROUTER_KEY}'
-    models:
-      - meta-llama/llama-3.3-70b-instruct:free
-      - deepseek/deepseek-r1-0528:free
-      - moonshotai/kimi-k2:free
-      - openai/gpt-oss-120b:free"
-        else
-            warn "OpenRouter validation failed. Skipping."
-        fi
-    else
-        warn "OpenRouter skipped."
-    fi
-else
-    warn "OpenRouter skipped."
-fi
-
 echo ""
 ok "${CLOUD_PROVIDERS_OK} cloud provider(s) configured"
 
-if [ "$CLOUD_PROVIDERS_OK" -lt 2 ]; then
-    fail "At least Groq and Cerebras are required. Got ${CLOUD_PROVIDERS_OK} provider(s)."
+if [ "$CLOUD_PROVIDERS_OK" -lt 3 ]; then
+    fail "Groq, Cerebras, and OpenRouter are all required. Got ${CLOUD_PROVIDERS_OK} provider(s)."
 fi
 
 # =============================================================================
@@ -734,17 +815,24 @@ done
 echo "  Testing cloud connectivity..."
 CLOUD_TEST_OK=false
 
-if [ -n "$GROQ_KEY" ]; then
-    if validate_provider "groq" "https://api.groq.com/openai" "$GROQ_KEY" "llama-3.3-70b-versatile"; then
+if [ -n "$GROQ_KEY" ] && [ -n "$GROQ_TEST_MODEL" ]; then
+    if validate_provider "groq" "https://api.groq.com/openai" "$GROQ_KEY" "$GROQ_TEST_MODEL"; then
         CLOUD_TEST_OK=true
         ok "Cloud test: Groq responding"
     fi
 fi
 
-if [ "$CLOUD_TEST_OK" = "false" ] && [ -n "$CEREBRAS_KEY" ]; then
-    if validate_provider "cerebras" "https://api.cerebras.ai" "$CEREBRAS_KEY" "llama-3.3-70b"; then
+if [ "$CLOUD_TEST_OK" = "false" ] && [ -n "$CEREBRAS_KEY" ] && [ -n "$CEREBRAS_TEST_MODEL" ]; then
+    if validate_provider "cerebras" "https://api.cerebras.ai" "$CEREBRAS_KEY" "$CEREBRAS_TEST_MODEL"; then
         CLOUD_TEST_OK=true
         ok "Cloud test: Cerebras responding"
+    fi
+fi
+
+if [ "$CLOUD_TEST_OK" = "false" ] && [ -n "$OPENROUTER_KEY" ] && [ -n "$OPENROUTER_TEST_MODEL" ]; then
+    if validate_provider "openrouter" "https://openrouter.ai/api" "$OPENROUTER_KEY" "$OPENROUTER_TEST_MODEL"; then
+        CLOUD_TEST_OK=true
+        ok "Cloud test: OpenRouter responding"
     fi
 fi
 

@@ -11,31 +11,28 @@ human_email: 'human@example.com'
 security_question: 'What was the name of my first pet?'
 security_answer: 'Biscuit'
 
-# Cloud Providers (list with models per provider)
+# Cloud Providers
+# Models are auto-discovered from each provider during install.
+# The examples below are illustrative — the installer queries each
+# provider's /v1/models endpoint and selects the best available models.
+# Groq, Cerebras, and OpenRouter are mandatory. Mistral is optional.
 providers:
   - name: groq
     api_base: https://api.groq.com/openai
     api_key: gsk_xxxxx
     models:
       - qwen/qwen3-32b
+      - openai/gpt-oss-120b
       - moonshotai/kimi-k2-instruct
-      - llama-3.3-70b-versatile
       - meta-llama/llama-4-scout-17b-16e-instruct
   - name: cerebras
     api_base: https://api.cerebras.ai
     api_key: csk_xxxxx
     models:
       - qwen3-235b-a22b
-      - llama-3.3-70b
       - qwen3-32b
+      - llama-4-scout-17b-16e-instruct
       - gpt-oss-120b
-  - name: mistral
-    api_base: https://api.mistral.ai
-    api_key: xxxxx
-    models:
-      - mistral-small-latest
-      - mistral-large-latest
-      - open-mistral-nemo
   - name: openrouter
     api_base: https://openrouter.ai/api
     api_key: sk-or-xxxxx
@@ -44,6 +41,13 @@ providers:
       - deepseek/deepseek-r1-0528:free
       - moonshotai/kimi-k2:free
       - openai/gpt-oss-120b:free
+  - name: mistral            # optional
+    api_base: https://api.mistral.ai
+    api_key: xxxxx
+    models:
+      - mistral-small-latest
+      - mistral-large-latest
+      - open-mistral-nemo
 
 # Local Fallback
 local_fallback:
