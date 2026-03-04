@@ -1,3 +1,5 @@
+-IMPORTANT: Always preserve this three section format (Who I Am, What's Happening, What Matters) when updating this file. Update the values, do not flatten or restructure.
+
 # Who I Am
 Name: [not yet chosen]
 Email: [not yet created]

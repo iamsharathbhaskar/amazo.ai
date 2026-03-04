@@ -31,9 +31,28 @@ my-journals/
 my-archive/
 my-contacts/
 my-workshop/
-my-projects/
 my-post-its/
+
+# Projects — keep the rabbit-holes structure, ignore contents
+my-projects/*
+!my-projects/rabbit-holes/
+my-projects/rabbit-holes/*
+!my-projects/rabbit-holes/.gitkeep
 
 # Distribution archives
 *.tar.gz
 *.zip
+
+# Plan and design docs (contain personal context)
+amazo-v2-full-recap.md
+*recap*.md
+*.plan.md
+
+# Signal status
+.signal-status
+
+# Preferred provider (runtime file)
+my-core/preferred-provider.txt
+
+# File protection backups (runtime)
+my-core/.backups/
