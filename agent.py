@@ -23,9 +23,10 @@ from datetime import datetime
 
 CONFIG_GPG = "my-core/my-config.yaml.gpg"
 CONFIG_PLAIN = "my-core/my-config.yaml"
-KEY_PATHS = ["/root/.amazo-key", "/var/root/.amazo-key"]
+_DIR_NAME = os.path.basename(os.getcwd())
+KEY_PATHS = [f"/root/.{_DIR_NAME}-key", f"/var/root/.{_DIR_NAME}-key"]
 HEARTBEAT_FILE = "my-core/my-heartbeat.txt"
-LOG_FILE = "amazo.log"
+LOG_FILE = f"{_DIR_NAME}.log"
 MAX_TOOL_ROUNDS = 50
 CYCLE_FLOOR = 120      # minimum cycle time in seconds (2 minutes)
 CYCLE_CEILING = 3600   # maximum cycle time in seconds (60 minutes)

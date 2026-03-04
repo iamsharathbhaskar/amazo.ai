@@ -50,20 +50,20 @@ The installer will:
 
 ## After Install
 
-The agent lives at `~/amazo` and auto-restarts on reboot via cron.
+The agent lives at `~/your-agent-name` (derived from the name you choose during install) and auto-restarts on reboot via cron.
 
 ```bash
 # Stop
 pkill -f 'python3 agent.py'
 
 # Restart
-cd ~/amazo && bash start.sh
+cd ~/your-agent-name && bash start.sh
 ```
 
 ## Project Structure
 
 ```
-amazo/
+your-agent-name/
 ├── agent.py                 # The loop engine (tools, protection, compression)
 ├── provider.py              # Cloud provider cascade and health tracking
 ├── my-core/                 # Agent identity and state
@@ -99,7 +99,7 @@ amazo/
 │   └── config.example.yaml  # Example configuration
 ├── start.sh                 # Launch script
 ├── watchdog.sh              # Process monitor
-└── amazo.log                # Runtime log
+└── your-agent-name.log      # Runtime log
 ```
 
 ## How It Works

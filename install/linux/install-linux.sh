@@ -207,13 +207,18 @@ done
 
 ok "Agent name: ${AGENT_NAME}"
 
+DIR_NAME=$(echo "$AGENT_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+if [ -z "$DIR_NAME" ]; then
+    DIR_NAME="amazo"
+fi
+
 # =============================================================================
 # STEP 3: Create Home
 # =============================================================================
 
 step "Creating home directory"
 
-INSTALL_DIR="${HOME}/amazo"
+INSTALL_DIR="${HOME}/${DIR_NAME}"
 
 if [ -f "${INSTALL_DIR}/my-core/my-config.yaml.gpg" ] || [ -f "${INSTALL_DIR}/my-core/my-config.yaml" ]; then
     echo ""
@@ -689,15 +694,15 @@ fi
 
 # Encrypt config with a random key stored securely
 AMAZO_KEY=$(head -c 32 /dev/urandom | base64)
-echo "$AMAZO_KEY" > /root/.amazo-key
-chmod 600 /root/.amazo-key
+echo "$AMAZO_KEY" > "/root/.${DIR_NAME}-key"
+chmod 600 "/root/.${DIR_NAME}-key"
 
 gpg --batch --yes --passphrase "$AMAZO_KEY" --symmetric --cipher-algo AES256 \
     -o my-core/my-config.yaml.gpg my-core/my-config.yaml 2>/dev/null
 
 if [ -f my-core/my-config.yaml.gpg ]; then
     rm -f my-core/my-config.yaml
-    ok "my-config.yaml encrypted (key at /root/.amazo-key)"
+    ok "my-config.yaml encrypted (key at /root/.${DIR_NAME}-key)"
 else
     fail "Config encryption failed."
 fi

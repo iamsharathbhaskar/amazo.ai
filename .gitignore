@@ -21,7 +21,7 @@ __pycache__/
 Thumbs.db
 
 # Amazo runtime files
-amazo.log
+*.log
 my-core/my-config.yaml
 my-core/my-config.yaml.gpg
 my-core/my-heartbeat.txt

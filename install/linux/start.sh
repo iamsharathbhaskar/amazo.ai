@@ -27,18 +27,19 @@ fi
 
 # Open a dedicated terminal window
 AMAZO_DIR="$(pwd)"
+DIR_NAME=$(basename "$(pwd)")
 LAUNCH_CMD="cd '${AMAZO_DIR}' && if [ -d .venv ]; then source .venv/bin/activate; fi && bash watchdog.sh"
 
 if command -v xterm &> /dev/null; then
-    xterm -title "Amazo" -e bash -c "$LAUNCH_CMD" &
+    xterm -title "${DIR_NAME}" -e bash -c "$LAUNCH_CMD" &
 elif command -v gnome-terminal &> /dev/null; then
-    gnome-terminal --title="Amazo" -- bash -c "$LAUNCH_CMD" &
+    gnome-terminal --title="${DIR_NAME}" -- bash -c "$LAUNCH_CMD" &
 elif command -v konsole &> /dev/null; then
     konsole -e bash -c "$LAUNCH_CMD" &
 elif command -v xfce4-terminal &> /dev/null; then
-    xfce4-terminal --title="Amazo" -e "bash -c \"$LAUNCH_CMD\"" &
+    xfce4-terminal --title="${DIR_NAME}" -e "bash -c \"$LAUNCH_CMD\"" &
 else
     echo "No terminal emulator found. Running headless."
-    echo "Logs: ${AMAZO_DIR}/amazo.log"
-    bash watchdog.sh >> amazo.log 2>&1 &
+    echo "Logs: ${AMAZO_DIR}/${DIR_NAME}.log"
+    bash watchdog.sh >> "${DIR_NAME}.log" 2>&1 &
 fi
