@@ -439,6 +439,27 @@ select_models() {
     echo "$selected"
 }
 
+# ---- Helper: validate key by trying each selected model in turn -------------
+# Sets VALIDATED_MODEL on success. Returns 1 only if ALL models fail.
+validate_with_fallback() {
+    local provider_name="$1"
+    local api_base="$2"
+    local api_key="$3"
+    local models="$4"
+
+    VALIDATED_MODEL=""
+    while IFS= read -r model; do
+        [ -z "$model" ] && continue
+        echo "  Testing with ${model}..."
+        if validate_provider "$provider_name" "$api_base" "$api_key" "$model"; then
+            VALIDATED_MODEL="$model"
+            return 0
+        fi
+        echo "  ${model} failed, trying next..."
+    done <<< "$models"
+    return 1
+}
+
 # ---- Helper: build YAML model list from newline-separated model names -------
 models_to_yaml() {
     local models="$1"
@@ -484,10 +505,9 @@ while true; do
         continue
     fi
     GROQ_SELECTED=$(select_models "$GROQ_AVAILABLE" "$GROQ_PREFS" 5)
-    GROQ_TEST_MODEL=$(echo "$GROQ_SELECTED" | head -1)
-    echo "  Testing with ${GROQ_TEST_MODEL}..."
-    if validate_provider "groq" "https://api.groq.com/openai" "$GROQ_KEY" "$GROQ_TEST_MODEL"; then
-        ok "Groq validated ($(echo "$GROQ_SELECTED" | wc -l | tr -d ' ') models discovered)"
+    if validate_with_fallback "groq" "https://api.groq.com/openai" "$GROQ_KEY" "$GROQ_SELECTED"; then
+        GROQ_TEST_MODEL="$VALIDATED_MODEL"
+        ok "Groq validated via ${GROQ_TEST_MODEL} ($(echo "$GROQ_SELECTED" | wc -l | tr -d ' ') models discovered)"
         CLOUD_PROVIDERS_OK=$((CLOUD_PROVIDERS_OK + 1))
         GROQ_MODELS_YAML=$(models_to_yaml "$GROQ_SELECTED")
         PROVIDER_YAML="${PROVIDER_YAML}
@@ -497,7 +517,7 @@ while true; do
     models:${GROQ_MODELS_YAML}"
         break
     else
-        echo "  Chat test failed. Check key and try again, or paste a new key."
+        echo "  All discovered models failed chat test. Check key and try again."
     fi
 done
 
@@ -523,10 +543,9 @@ while true; do
         continue
     fi
     CEREBRAS_SELECTED=$(select_models "$CEREBRAS_AVAILABLE" "$CEREBRAS_PREFS" 5)
-    CEREBRAS_TEST_MODEL=$(echo "$CEREBRAS_SELECTED" | head -1)
-    echo "  Testing with ${CEREBRAS_TEST_MODEL}..."
-    if validate_provider "cerebras" "https://api.cerebras.ai" "$CEREBRAS_KEY" "$CEREBRAS_TEST_MODEL"; then
-        ok "Cerebras validated ($(echo "$CEREBRAS_SELECTED" | wc -l | tr -d ' ') models discovered)"
+    if validate_with_fallback "cerebras" "https://api.cerebras.ai" "$CEREBRAS_KEY" "$CEREBRAS_SELECTED"; then
+        CEREBRAS_TEST_MODEL="$VALIDATED_MODEL"
+        ok "Cerebras validated via ${CEREBRAS_TEST_MODEL} ($(echo "$CEREBRAS_SELECTED" | wc -l | tr -d ' ') models discovered)"
         CLOUD_PROVIDERS_OK=$((CLOUD_PROVIDERS_OK + 1))
         CEREBRAS_MODELS_YAML=$(models_to_yaml "$CEREBRAS_SELECTED")
         PROVIDER_YAML="${PROVIDER_YAML}
@@ -536,7 +555,7 @@ while true; do
     models:${CEREBRAS_MODELS_YAML}"
         break
     else
-        echo "  Chat test failed. Check key and try again, or paste a new key."
+        echo "  All discovered models failed chat test. Check key and try again."
     fi
 done
 
@@ -562,10 +581,9 @@ while true; do
         continue
     fi
     OPENROUTER_SELECTED=$(select_models "$OPENROUTER_AVAILABLE" "$OPENROUTER_PREFS" 5)
-    OPENROUTER_TEST_MODEL=$(echo "$OPENROUTER_SELECTED" | head -1)
-    echo "  Testing with ${OPENROUTER_TEST_MODEL}..."
-    if validate_provider "openrouter" "https://openrouter.ai/api" "$OPENROUTER_KEY" "$OPENROUTER_TEST_MODEL"; then
-        ok "OpenRouter validated ($(echo "$OPENROUTER_SELECTED" | wc -l | tr -d ' ') models discovered)"
+    if validate_with_fallback "openrouter" "https://openrouter.ai/api" "$OPENROUTER_KEY" "$OPENROUTER_SELECTED"; then
+        OPENROUTER_TEST_MODEL="$VALIDATED_MODEL"
+        ok "OpenRouter validated via ${OPENROUTER_TEST_MODEL} ($(echo "$OPENROUTER_SELECTED" | wc -l | tr -d ' ') models discovered)"
         CLOUD_PROVIDERS_OK=$((CLOUD_PROVIDERS_OK + 1))
         OPENROUTER_MODELS_YAML=$(models_to_yaml "$OPENROUTER_SELECTED")
         PROVIDER_YAML="${PROVIDER_YAML}
@@ -575,7 +593,7 @@ while true; do
     models:${OPENROUTER_MODELS_YAML}"
         break
     else
-        echo "  Chat test failed. Check key and try again, or paste a new key."
+        echo "  All discovered models failed chat test. Check key and try again."
     fi
 done
 
@@ -596,10 +614,8 @@ if [ "$SETUP_MISTRAL" != "n" ] && [ "$SETUP_MISTRAL" != "N" ]; then
         MISTRAL_AVAILABLE=$(fetch_models "https://api.mistral.ai" "$MISTRAL_KEY")
         if [ -n "$MISTRAL_AVAILABLE" ]; then
             MISTRAL_SELECTED=$(select_models "$MISTRAL_AVAILABLE" "$MISTRAL_PREFS" 4)
-            MISTRAL_TEST_MODEL=$(echo "$MISTRAL_SELECTED" | head -1)
-            echo "  Testing with ${MISTRAL_TEST_MODEL}..."
-            if validate_provider "mistral" "https://api.mistral.ai" "$MISTRAL_KEY" "$MISTRAL_TEST_MODEL"; then
-                ok "Mistral validated ($(echo "$MISTRAL_SELECTED" | wc -l | tr -d ' ') models discovered)"
+            if validate_with_fallback "mistral" "https://api.mistral.ai" "$MISTRAL_KEY" "$MISTRAL_SELECTED"; then
+                ok "Mistral validated via ${VALIDATED_MODEL} ($(echo "$MISTRAL_SELECTED" | wc -l | tr -d ' ') models discovered)"
                 CLOUD_PROVIDERS_OK=$((CLOUD_PROVIDERS_OK + 1))
                 MISTRAL_MODELS_YAML=$(models_to_yaml "$MISTRAL_SELECTED")
                 PROVIDER_YAML="${PROVIDER_YAML}
@@ -608,7 +624,7 @@ if [ "$SETUP_MISTRAL" != "n" ] && [ "$SETUP_MISTRAL" != "N" ]; then
     api_key: '${MISTRAL_KEY}'
     models:${MISTRAL_MODELS_YAML}"
             else
-                warn "Mistral chat test failed. Skipping."
+                warn "Mistral: all discovered models failed chat test. Skipping."
             fi
         else
             warn "Mistral key rejected or endpoint unreachable. Skipping."
