@@ -15,6 +15,7 @@ __pycache__/
 .idea/
 *.swp
 *.swo
+.Rhistory
 
 # OS
 .DS_Store
@@ -26,12 +27,17 @@ my-core/my-config.yaml
 my-core/my-config.yaml.gpg
 my-core/my-heartbeat.txt
 
-# User directories (will be created on first run)
-my-journals/
-my-archive/
-my-contacts/
-my-workshop/
-my-post-its/
+# User directories — keep structure via .gitkeep, ignore contents
+my-journals/*
+!my-journals/.gitkeep
+my-archive/*
+!my-archive/.gitkeep
+my-contacts/*
+!my-contacts/.gitkeep
+my-workshop/*
+!my-workshop/.gitkeep
+my-post-its/*
+!my-post-its/.gitkeep
 
 # Projects — keep the rabbit-holes structure, ignore contents
 my-projects/*

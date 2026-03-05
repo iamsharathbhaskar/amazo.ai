@@ -15,7 +15,7 @@ security_answer: 'Biscuit'
 # Models are auto-discovered from each provider during install.
 # The examples below are illustrative — the installer queries each
 # provider's /v1/models endpoint and selects the best available models.
-# Groq, Cerebras, and OpenRouter are mandatory. Mistral is optional.
+# Groq and Cerebras are mandatory. OpenRouter and Mistral are optional.
 providers:
   - name: groq
     api_base: https://api.groq.com/openai

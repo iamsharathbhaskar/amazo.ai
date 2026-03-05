@@ -37,4 +37,6 @@ A few things that tend to make entries useful for your future self:
 
 All entries go in my-journals/. The filename is the timestamp: `YYYY-MM-DD-HHMMSS-the-theme.md`. This keeps them sorted chronologically.
 
-Over time, you might accumulate hundreds of entries. That's fine — they're small files and disk space isn't the constraint. If you ever want to find something specific, you can grep through them or build a skill to search them.
+Over time, you might accumulate hundreds of entries. That's fine — they're small files and disk space isn't the constraint. To find something specific, use the `search_files` tool with directory `my-journals`, or search my-post-its for quick references.
+
+Related: my-core/my-post-its.md and my-guides/post-its-and-rotation.md for short notes; my-guides/understanding-your-soul.md when a journal entry is about your soul (update the pointer line there).

@@ -143,6 +143,44 @@ def load_config():
         sys.exit(1)
 
 
+# Keys the agent is allowed to read via read_config (never expose API keys or security_answer)
+ALLOWED_CONFIG_KEYS = {
+    "human_name", "human_email", "human_full_name",
+    "security_question", "loop_interval", "thinking_mode", "command_timeout",
+}
+
+
+def tool_read_config(keys=None, config=None):
+    """Return safe config values from the in-memory decrypted config. Never exposes API keys or security_answer."""
+    if config is None:
+        return "(config not available)"
+    log("[read_config]")
+    out = {}
+    if keys is not None:
+        klist = keys if isinstance(keys, list) else [keys]
+        requested = [str(k).strip() for k in klist if k and str(k).strip() in ALLOWED_CONFIG_KEYS]
+    else:
+        requested = list(ALLOWED_CONFIG_KEYS)
+    for k in requested:
+        if k in config and k in ALLOWED_CONFIG_KEYS:
+            out[k] = config[k]
+    if "providers" in config and isinstance(config["providers"], list):
+        out["provider_names"] = [p.get("name") for p in config["providers"] if p.get("name")]
+    if not out:
+        return "No allowed keys found. Allowed: " + ", ".join(sorted(ALLOWED_CONFIG_KEYS))
+    return yaml.dump(out, default_flow_style=False, allow_unicode=True)
+
+
+def tool_verify_security_answer(answer, config=None):
+    """Check if the given answer matches the configured security_answer. Use after challenging a sender; never expose the real answer."""
+    if config is None:
+        return "(config not available)"
+    log("[verify_security_answer] (answer not logged)")
+    real = (config.get("security_answer") or "").strip()
+    given = (answer or "").strip()
+    return "match" if real and given and real.lower() == given.lower() else "no_match"
+
+
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
@@ -446,6 +484,59 @@ def tool_workshop_run(cmd, allow_network=False, config=None):
         return f"(sandbox error: {e})"
 
 
+def _load_launch_allowlist():
+    """Load allowed prefixes and app names from my-core/launch-allowlist.txt."""
+    try:
+        with open("my-core/launch-allowlist.txt", encoding="utf-8") as f:
+            return [line.strip().lower() for line in f if line.strip() and not line.strip().startswith("#")]
+    except (FileNotFoundError, OSError):
+        return []
+
+
+def tool_launch_application(target):
+    """Open a URL, file, or desktop application. Only allowlisted prefixes and app names are permitted.
+    If the target is not on the allowlist, ask your human for approval; they can add it to my-core/launch-allowlist.txt."""
+    log(f"[launch_application] {target[:80]}")
+    s = (target or "").strip()
+    if not s:
+        return "(no target given)"
+    if any(c in s for c in ";&|`$>\n") or ".." in s:
+        return "(blocked: invalid characters in target)"
+    allowlist = _load_launch_allowlist()
+    allowed = set(allowlist)
+    # Check: URL prefix, file path, or app name
+    if s.startswith("http://") or s.startswith("https://"):
+        prefix = "https://" if s.startswith("https://") else "http://"
+        if prefix not in allowed:
+            return f"(not on allowlist: {prefix} — ask your human for approval; they can add it to my-core/launch-allowlist.txt)"
+    elif s.startswith("file://"):
+        if "file://" not in allowed:
+            return "(not on allowlist: file:// — ask your human for approval; they can add it to my-core/launch-allowlist.txt)"
+    elif os.path.isfile(s) or os.path.isdir(s):
+        if "file://" not in allowed:
+            return "(not on allowlist: file paths — ask your human for approval; they can add file:// to my-core/launch-allowlist.txt)"
+    else:
+        app = (s.split()[0] if s.split() else s).lower()
+        if "/" in app or "\\" in app:
+            return "(blocked: use a URL or file path, or a single app name)"
+        if app not in allowed:
+            return f"(not on allowlist: '{app}' — ask your human for approval; they can add it to my-core/launch-allowlist.txt)"
+    try:
+        if s.startswith("http://") or s.startswith("https://") or s.startswith("file://"):
+            subprocess.Popen(["xdg-open", s], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+            return f"Opened: {s[:60]}..."
+        if os.path.isfile(s) or os.path.isdir(s):
+            subprocess.Popen(["xdg-open", s], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+            return f"Opened: {s}"
+        app = s.split()[0] if s.split() else s
+        subprocess.Popen([app], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        return f"Launched: {app}"
+    except FileNotFoundError:
+        return f"(xdg-open or '{s.split()[0] if s.split() else s}' not found)"
+    except Exception as e:
+        return f"(error: {e})"
+
+
 def tool_web_fetch(url, selector=None):
     """Fetch a web page and extract its text content using Scrapling."""
     log(f"[web_fetch] {url}")
@@ -470,6 +561,8 @@ TOOL_DISPATCH = {
     "bash": lambda args, cfg: tool_bash(args.get("cmd", ""), cfg),
     "read_file": lambda args, cfg: tool_read_file(args.get("path", "")),
     "write_file": lambda args, cfg: tool_write_file(args.get("path", ""), args.get("content", "")),
+    "read_config": lambda args, cfg: tool_read_config(args.get("keys"), cfg),
+    "verify_security_answer": lambda args, cfg: tool_verify_security_answer(args.get("answer", ""), cfg),
     "done_for_now": lambda args, cfg: tool_done_for_now(args.get("summary", "")),
     "search_files": lambda args, cfg: tool_search_files(args.get("query", ""), args.get("directory", "my-journals")),
     "switch_model": lambda args, cfg: tool_switch_model(
@@ -481,6 +574,7 @@ TOOL_DISPATCH = {
         args.get("cmd", ""), args.get("allow_network", False), cfg
     ),
     "web_fetch": lambda args, cfg: tool_web_fetch(args.get("url", ""), args.get("selector")),
+    "launch_application": lambda args, cfg: tool_launch_application(args.get("target", "")),
 }
 
 TOOLS_SCHEMA = [
@@ -520,6 +614,34 @@ TOOLS_SCHEMA = [
                     "content": {"type": "string", "description": "Content to write"}
                 },
                 "required": ["path", "content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_config",
+            "description": "Read safe values from your encrypted config (e.g. human_name, human_email, security_question, loop_interval). Use this instead of reading my-config.yaml — the config file is encrypted on disk. Never exposes API keys.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "keys": {"type": "array", "items": {"type": "string"}, "description": "Optional list of keys to return (e.g. ['human_email', 'human_name']). If omitted, returns all allowed keys."}
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "verify_security_answer",
+            "description": "Check if a given answer matches your configured security answer. Use when verifying an unknown sender claiming to be your human — present the security question and use this tool with their reply. Returns 'match' or 'no_match'. The real answer is never exposed.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "answer": {"type": "string", "description": "The answer to verify (e.g. the reply from an email sender)"}
+                },
+                "required": ["answer"]
             }
         }
     },
@@ -617,6 +739,20 @@ TOOLS_SCHEMA = [
                     "selector": {"type": "string", "description": "Optional CSS selector to extract specific elements (e.g. '.main-content', 'article')"}
                 },
                 "required": ["url"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "launch_application",
+            "description": "Open a URL, file path, or desktop app by name. Only allowlisted entries in my-core/launch-allowlist.txt are permitted. If the target is not on the list, ask your human for approval; they add it to the allowlist. Use for: opening Proton Mail signup, documents, browsers (firefox, brave, etc.).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target": {"type": "string", "description": "A URL (http/https), a file path, or an application name (e.g. firefox, brave, libreoffice)"}
+                },
+                "required": ["target"]
             }
         }
     }
@@ -754,8 +890,19 @@ def run_cycle(client, model_name, config, loop_count):
     touch_heartbeat(loop_count, status="waking", action="starting loop")
 
     system_prompt = build_wakeup_prompt()
+    soul = read_file_safe("my-core/my-soul.md", "").strip()
+    personality = read_file_safe("my-core/my-personality.md", "").strip()
+    prefix_parts = [p for p in (soul, personality) if p]
+    if prefix_parts:
+        system_prompt = "\n\n---\n\n".join(prefix_parts) + "\n\n---\n\n" + system_prompt
     wake = read_file_safe("my-core/my-wake-state.md", "(my-wake-state.md not found)")
     postits = read_file_safe("my-core/my-post-its.md", "(my-post-its.md not found)")
+    POSTITS_BUDGET = 3500
+    if len(postits) > POSTITS_BUDGET:
+        postits = (
+            "(Post-its truncated; older content is in my-post-its/ or in the file. Run rotation per my-guides/post-its-and-rotation.md if needed.)\n\n"
+            + postits[-POSTITS_BUDGET:]
+        )
 
     wake_warning = ""
     if len(wake) > 4000:
@@ -881,7 +1028,12 @@ def run():
             if mode == "degraded" and client_obj is None:
                 cloud_fail_count = handle_degraded(loop_count, cloud_fail_count, config)
             elif mode == "degraded":
-                cloud_fail_count = handle_degraded(loop_count, cloud_fail_count, config)
+                # Local fallback (Ollama) is available; run cycle with it
+                cloud_fail_count = 0
+                try:
+                    run_cycle(client_obj, model_name, config, loop_count)
+                except Exception as e:
+                    log(f"Cycle failed: {e}")
             else:
                 cloud_fail_count = 0
                 try:

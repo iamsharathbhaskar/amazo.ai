@@ -344,7 +344,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-mkdir -p "${INSTALL_DIR}"/{my-journals,my-archive,my-contacts,my-workshop,my-projects,my-post-its,proposed}
+mkdir -p "${INSTALL_DIR}"/{my-journals,my-archive,my-contacts,my-workshop,my-projects,my-projects/rabbit-holes,my-post-its,proposed}
 
 cp -a "$SOURCE_DIR"/my-core "${INSTALL_DIR}/"
 cp -a "$SOURCE_DIR"/my-guides "${INSTALL_DIR}/"
@@ -360,7 +360,7 @@ cp "$SCRIPT_DIR"/uninstall.sh "${INSTALL_DIR}/" 2>/dev/null || true
 MISSING_FILES=false
 for required in my-core/my-soul.md my-core/my-personality.md my-core/my-wakeup-prompt.md \
                 my-core/theloop.md my-core/my-wake-state.md my-core/my-body.md \
-                my-core/my-post-its.md my-core/bootstrap.md \
+                my-core/my-post-its.md my-core/launch-allowlist.txt my-core/index.md my-core/bootstrap.md \
                 agent.py provider.py start.sh watchdog.sh; do
     if [ ! -f "${INSTALL_DIR}/${required}" ]; then
         warn "Missing: ${required}"

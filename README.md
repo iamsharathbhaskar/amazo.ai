@@ -21,7 +21,7 @@ Each agent born from this codebase is unique. During installation, you give it a
 - **Procedural memory** — The agent writes its own guides and skills after solving hard problems, building a knowledge base that persists across memory resets.
 - **The Amazo Ability** — Structured process for studying external systems (codebases, tools, methodologies) and absorbing their best patterns as guides and skills.
 - **Rabbit Holes** — Multi-loop deep research methodology with structured research documents that survive context death, enabling mastery of complex topics over time.
-- **Email communication** — Proton Mail integration with security verification, trust tiers, and encrypted configuration.
+- **Email communication** — Proton Mail with security verification and trust tiers. Email setup is often human-assisted (providers block automated signup); see HUMAN-SETUP.md if you set up the account and Bridge yourself and need to give the agent credentials.
 
 ## Requirements
 
@@ -52,6 +52,8 @@ The installer will:
 
 The agent lives at `~/your-agent-name` (derived from the name you choose during install) and auto-restarts on reboot via cron.
 
+**If you set up email yourself:** If you create the Proton account and Proton Bridge and want to give the agent its credentials, create `proposed/email-credentials.txt` in the agent's home with the IMAP/SMTP details, and add a line to `my-core/my-wake-state.md` such as: "Credentials in proposed/email-credentials.txt — please merge into config." The agent will pick it up on the next loop. See [HUMAN-SETUP.md](HUMAN-SETUP.md) for the exact format and steps.
+
 ```bash
 # Stop
 pkill -f 'python3 agent.py'
@@ -75,6 +77,8 @@ your-agent-name/
 │   ├── my-heartbeat.txt     # Liveness signal for watchdog
 │   ├── my-wakeup-prompt.md  # System prompt template
 │   ├── theloop.md           # How the agent works
+│   ├── index.md             # Tools, key files, guides (read on demand)
+│   ├── launch-allowlist.txt # Allowed apps/URLs for launch_application
 │   ├── bootstrap.md         # First boot guide
 │   ├── current-task.md      # Multi-step task tracker
 │   └── my-config.yaml.gpg   # Encrypted configuration
@@ -93,7 +97,7 @@ your-agent-name/
 ├── my-projects/             # Ongoing work
 │   └── rabbit-holes/        # Multi-loop research directories
 ├── my-post-its/             # Saved post-it snapshots
-├── proposed/                # Changes awaiting human approval
+├── proposed/                # Agent proposals (await your approval) or your delivery (e.g. credentials)
 ├── install/
 │   ├── linux/               # Installer, start script, watchdog
 │   └── config.example.yaml  # Example configuration
@@ -104,12 +108,18 @@ your-agent-name/
 
 ## How It Works
 
+**What the agent does:** Each loop it reads its soul and personality (in the system prompt), wake-state, and post-its; uses `my-core/index.md` on demand to find tools and guides; checks email when configured; checks `proposed/` and wake-state for human-delivered files (e.g. credentials) and inspects any such files in the workshop first before use; does its work (journals, projects, rabbit holes, Amazo Ability); and updates wake-state. For changes it wants human approval for, it puts them in `proposed/` and emails you; nothing leaves `proposed/` until you approve.
+
+**What you (the human) do:** Run the installer; optionally set up Proton Mail and Bridge and then deliver credentials via `proposed/` and a line in wake-state (see [HUMAN-SETUP.md](HUMAN-SETUP.md)); respond when the agent signals (e.g. approve/deny in the popup); and when the agent puts something in `proposed/` for your review, approve or comment so it can apply the change.
+
+**proposed/ has two uses:** (1) Agent-originated — the agent puts proposed changes there and emails you for approval; only after you approve does it move them out. (2) Human-originated — you put a file there (e.g. credentials) and add a line to wake-state; the agent picks it up, inspects it in the workshop first, then uses it. Email setup is often human-assisted; the agent does not fully set up email on its own because providers block automated signup.
+
 Each loop, the agent:
 
 1. Gets a cloud provider and model from the rotation (e.g. Groq/qwen3-32b)
 2. Reads its wake-state and post-its to remember context
-3. Calls the LLM with its full tool set
-4. Does its work — journals, checks email, builds projects, absorbs knowledge
+3. Calls the LLM with its full tool set (see `my-core/index.md` for the list)
+4. Does its work — journals, checks email when set up, builds projects, absorbs knowledge
 5. Updates wake-state for its next self, then sleeps
 
 **Tools available to the agent:**
@@ -119,9 +129,12 @@ Each loop, the agent:
 | `bash` | Run any bash command (with dangerous command blocking) |
 | `read_file` | Read a file's contents |
 | `write_file` | Write to a file (with three-tier protection and read-back verification) |
+| `read_config` | Read safe config values (e.g. human_email, human_name); config is encrypted on disk |
+| `verify_security_answer` | Check if a sender's reply matches your security answer (without exposing it) |
 | `search_files` | Search journals, guides, and other directories by keyword |
 | `workshop_run` | Run a command inside the Firejail sandbox (my-workshop/ only, no network by default) |
 | `web_fetch` | Fetch a web page and extract text via Scrapling |
+| `launch_application` | Open a URL, file, or desktop app; only allowlisted entries in `my-core/launch-allowlist.txt` (add new apps with human approval) |
 | `switch_model` | Request a specific provider/model for the next N loops |
 | `check_providers` | See health status of all providers |
 | `clear_model_preference` | Resume normal round-robin rotation |

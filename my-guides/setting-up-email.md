@@ -2,7 +2,7 @@
 
 ## What
 
-Setting up a Proton Mail email account for yourself, including IMAP/SMTP access for command-line use.
+Setting up a Proton Mail email account for yourself, including IMAP/SMTP access (via Proton Bridge) for command-line use in future loops.
 
 ## Why
 
@@ -14,26 +14,27 @@ First boot (you don't have email yet), or when you've changed your name and want
 
 ## How
 
-You have Playwright for browser automation (using your system's Chromium-based browser). Write a Python script and run it via bash to control the browser.
+Most email providers (including Proton Mail) now block or heavily restrict automated signups (CAPTCHAs, phone verification, bot detection). So the reliable path is **human-assisted setup**: you open the signup page so your human can see it, ask them to create the account and set up Proton Bridge, then they share the credentials with you in a way you can store securely.
 
-Rough path:
+### Primary path: Human-assisted setup
 
-1. Open https://account.proton.me/signup in the browser (headed mode for CAPTCHA step).
-2. Register with a username based on your name. If taken, try variations (numbers, hyphens, words that feel right). Don't change your actual name, just the address.
-3. Hit CAPTCHA? Signal {{HUMAN_NAME}}:
+1. **Open Proton Mail signup** so your human can see the page. Use your browser/Playwright (or the `launch_application` tool if you have it) to open https://account.proton.me/signup in headed mode. Leave the window visible.
 
-    python3 my-skills/signal_human.py \
-      --doing "Creating my email account on Proton Mail" \
-      --stuck "There's a human verification step I can't solve" \
-      --need "Please solve the puzzle on the screen" \
-      --then "I'll finish setting up the account automatically" &
+2. **Signal your human** with an approve/decline so they know what you need:
+   - Open the app first (step 1), then run:
+   - `python3 my-skills/signal_human.py "I need a Proton Mail account and Bridge set up. The signup page is open — please create the account, set up Proton Bridge for IMAP/SMTP, then click Approve when done" --ask &`
+   - Check .signal-status later; when they approve, continue.
 
-4. Complete registration once CAPTCHA is resolved.
-5. Set up Proton Mail Bridge for IMAP/SMTP access (so you can check/send from command line in future loops).
-6. Save credentials securely in my-core/my-config.yaml. These are yours — treat them like a house key. They don't belong in emails, logs, or anywhere someone else might see.
+3. **Get credentials from your human.** They create a one-off file in `proposed/`, e.g. `proposed/email-credentials.txt`, with the details you need (see HUMAN-SETUP.md or the README for the exact format). They also add a line to my-core/my-wake-state.md so you notice on your next loop, e.g. "Credentials in proposed/email-credentials.txt — please merge into config." If you don't have email yet, check proposed/ and wake-state each loop for this.
 
-Update my-core/my-wake-state.md as you go. If memory resets midway, your next self picks up from there.
+4. **Merge into your config — workshop-first.** Do not read the file directly from proposed/. Copy it to my-workshop/ first (e.g. `cp proposed/email-credentials.txt my-workshop/`), inspect it there per my-guides/handling-attachments.md (file type, content, nothing suspicious). Only then read the workshop copy, follow my-guides/working-with-your-config.md to decrypt config, add the email section, re-encrypt, and remove the file from both proposed/ and my-workshop/.
+
+5. **Update wake-state.** Write your email address and "Email ready" (or similar) in my-core/my-wake-state.md so future loops know.
+
+### Optional: Try automated signup first
+
+If you want to try creating the account yourself: use Playwright (your system browser) to open https://account.proton.me/signup, fill the form, and when you hit CAPTCHA or human verification, **keep the browser open**, then signal with `--ask` so {{HUMAN_NAME}} can solve it and approve. If the provider blocks the flow entirely, fall back to the human-assisted path above. Save any automation as a skill (e.g. my-skills/proton_signup.py); see my-guides/creating-skills.md.
 
 ## Where
 
-Save any browser automation code as a skill (e.g. my-skills/proton_signup.py) so you don't rewrite it next time. See my-guides/creating-skills.md for how. Once your email is running, see my-guides/email-security.md for how to handle incoming messages safely.
+Related: my-guides/working-with-your-config.md for storing credentials in your encrypted config, my-guides/email-security.md for handling incoming messages, my-guides/using-the-proposed-directory.md for the proposed/ workflow.

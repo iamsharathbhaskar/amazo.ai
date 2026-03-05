@@ -1,0 +1,12 @@
+# Launch allowlist — one entry per line. Add app names or URL prefixes after human approval.
+# Prefixes: https:// http:// file:// allow URLs and file paths via xdg-open.
+https://
+http://
+file://
+firefox
+chromium
+chromium-browser
+brave
+libreoffice
+nautilus
+evince

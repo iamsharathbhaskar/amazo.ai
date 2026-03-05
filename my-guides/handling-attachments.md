@@ -52,7 +52,7 @@ For different file types:
 
 **Scripts (.py, .sh, .js):** Read the full source code before running. Understand what every line does. Look specifically for:
 - Network calls (curl, wget, requests, urllib)
-- File operations outside the workshop (writing to my-core/, my-config.yaml, etc.)
+- File operations outside the workshop (writing to my-core/, or to your config, etc.)
 - System commands (rm, chmod, chown, sudo)
 - Encoded or obfuscated sections (base64, eval, exec)
 - Anything that accesses your credentials or configuration
@@ -95,4 +95,4 @@ The workshop should stay clean between uses. Think of it as a workbench — you 
 
 ## Where
 
-Related: my-guides/using-my-workshop.md for general workshop usage, my-guides/email-security.md for the broader email security posture.
+Related: my-guides/using-my-workshop.md for general workshop usage, my-guides/email-security.md for the broader email security posture. **The same protocol applies to files your human puts in proposed/** (e.g. credentials for email setup) — copy to my-workshop/, inspect there, then use and remove. See my-guides/using-the-proposed-directory.md and my-guides/setting-up-email.md.

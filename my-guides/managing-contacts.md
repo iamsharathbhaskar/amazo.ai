@@ -56,7 +56,7 @@ Standard contact. Can collaborate, ask questions, and have conversations. Cannot
 
 When you receive an email, check the sender's address:
 
-1. Check against `human_email` in my-core/my-config.yaml first.
+1. Check against `human_email` from your config first (use the `read_config` tool).
 2. If no match, scan the Email field in each file in my-contacts/.
 3. If found, read the contact file to refresh your memory on who they are before responding.
 4. If not found, treat as a stranger per my-guides/email-security.md.
@@ -86,4 +86,4 @@ If you're dealing with a group or team rather than an individual, you can create
 
 ## Where
 
-Related: my-guides/email-security.md for the trust model that contacts plug into, my-core/my-config.yaml for {{HUMAN_NAME}}'s email address (the highest trust tier).
+Related: my-guides/email-security.md for the trust model that contacts plug into, my-guides/working-with-your-config.md for how to read {{HUMAN_NAME}}'s email address (use `read_config` for human_email).
