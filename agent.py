@@ -24,7 +24,8 @@ from datetime import datetime
 CONFIG_GPG = "my-core/my-config.yaml.gpg"
 CONFIG_PLAIN = "my-core/my-config.yaml"
 _DIR_NAME = os.path.basename(os.getcwd())
-KEY_PATHS = [f"/root/.{_DIR_NAME}-key", f"/var/root/.{_DIR_NAME}-key"]
+_HOME = os.path.expanduser("~")
+KEY_PATHS = [f"{_HOME}/.{_DIR_NAME}-key", f"/root/.{_DIR_NAME}-key", f"/var/root/.{_DIR_NAME}-key"]
 HEARTBEAT_FILE = "my-core/my-heartbeat.txt"
 LOG_FILE = f"{_DIR_NAME}.log"
 MAX_TOOL_ROUNDS = 50

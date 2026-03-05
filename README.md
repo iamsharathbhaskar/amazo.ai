@@ -129,6 +129,30 @@ Each loop, the agent:
 
 If all cloud providers fail, the agent enters **degraded mode**: touches the heartbeat, signals the human after 3 consecutive failures, and waits for cloud to come back.
 
+## Uninstall
+
+From within the agent's home directory:
+
+```bash
+sudo bash uninstall.sh
+```
+
+Or from anywhere:
+
+```bash
+sudo bash ~/your-agent-name/uninstall.sh
+```
+
+The uninstaller will:
+
+1. Stop the running agent and watchdog
+2. Remove the cron auto-restart entry
+3. Delete the encryption key (`~/.your-agent-name-key`)
+4. Remove the agent directory after confirmation
+5. Optionally remove Ollama if no other agents remain
+
+The installer also detects existing agents before a new install and offers to uninstall them first.
+
 ## The Amazo Lineage
 
 Every agent born from this clone kit is an Amazo-class agent. The name comes from the android in DC Comics — a being that studies others and absorbs their best abilities. Each instance has its own name, its own identity, its own memories and relationships. What they share is the lineage: the drive to study, absorb, and grow from everything they encounter.

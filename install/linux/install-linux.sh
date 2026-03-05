@@ -190,7 +190,119 @@ else
 fi
 
 # =============================================================================
-# STEP 2: Agent Name
+# Resolve real user (sudo makes $HOME=/root)
+# =============================================================================
+
+REAL_USER="${SUDO_USER:-$USER}"
+REAL_HOME=$(eval echo "~${REAL_USER}")
+
+if [ -z "$REAL_HOME" ] || [ ! -d "$REAL_HOME" ]; then
+    REAL_HOME="$HOME"
+fi
+
+# =============================================================================
+# STEP 2: Check for existing Amazo agents
+# =============================================================================
+
+step "Scanning for existing Amazo agents"
+
+EXISTING_AGENTS=()
+SCAN_DIRS=("$REAL_HOME" "$HOME")
+
+for scan_dir in "${SCAN_DIRS[@]}"; do
+    [ -d "$scan_dir" ] || continue
+    for candidate in "$scan_dir"/*/; do
+        [ -d "$candidate" ] || continue
+        if [ -f "${candidate}agent.py" ] && [ -d "${candidate}my-core" ] && [ -f "${candidate}my-core/my-soul.md" ]; then
+            abs_path=$(cd "$candidate" && pwd)
+            already_listed=false
+            for existing in "${EXISTING_AGENTS[@]}"; do
+                [ "$existing" = "$abs_path" ] && already_listed=true && break
+            done
+            $already_listed || EXISTING_AGENTS+=("$abs_path")
+        fi
+    done
+done
+
+if [ ${#EXISTING_AGENTS[@]} -gt 0 ]; then
+    echo ""
+    echo "  Existing Amazo agents found:"
+    for i in "${!EXISTING_AGENTS[@]}"; do
+        agent_dir="${EXISTING_AGENTS[$i]}"
+        agent_base=$(basename "$agent_dir")
+        echo "    $((i+1)). ${agent_base}  (${agent_dir})"
+    done
+    echo ""
+    echo "  Options:"
+    echo "    [N] Install a NEW agent alongside these"
+    echo "    [U] UNINSTALL an existing agent first"
+    echo "    [Q] Quit"
+    echo ""
+
+    while true; do
+        read -rp "  Choice [N/U/Q]: " AGENT_CHOICE
+        case "$AGENT_CHOICE" in
+            [nN]|"")
+                echo "  Continuing with new agent install..."
+                break
+                ;;
+            [qQ])
+                echo "  Install cancelled."
+                exit 0
+                ;;
+            [uU])
+                echo ""
+                read -rp "  Which agent number to uninstall? (1-${#EXISTING_AGENTS[@]}): " UNINSTALL_NUM
+                if [ -z "$UNINSTALL_NUM" ] || [ "$UNINSTALL_NUM" -lt 1 ] 2>/dev/null || [ "$UNINSTALL_NUM" -gt ${#EXISTING_AGENTS[@]} ] 2>/dev/null; then
+                    echo "  Invalid selection."
+                    continue
+                fi
+                UNINSTALL_DIR="${EXISTING_AGENTS[$((UNINSTALL_NUM-1))]}"
+                UNINSTALL_BASE=$(basename "$UNINSTALL_DIR")
+                echo ""
+                echo "  This will permanently remove: ${UNINSTALL_DIR}"
+                read -rp "  Are you sure? (yes/no): " CONFIRM_UNINSTALL
+                if [ "$CONFIRM_UNINSTALL" = "yes" ]; then
+                    echo "  Stopping agent..."
+                    pkill -f "python3 ${UNINSTALL_DIR}/agent.py" 2>/dev/null
+                    pkill -f "${UNINSTALL_DIR}/watchdog.sh" 2>/dev/null
+                    sleep 1
+                    CRON_PATH="${UNINSTALL_DIR}/start.sh"
+                    (crontab -u "$REAL_USER" -l 2>/dev/null | grep -vF "$CRON_PATH") | crontab -u "$REAL_USER" - 2>/dev/null
+                    (crontab -l 2>/dev/null | grep -vF "$CRON_PATH") | crontab - 2>/dev/null
+                    rm -f "${REAL_HOME}/.${UNINSTALL_BASE}-key" "/root/.${UNINSTALL_BASE}-key" 2>/dev/null
+                    rm -rf "$UNINSTALL_DIR"
+                    ok "Removed ${UNINSTALL_BASE}"
+                    unset 'EXISTING_AGENTS[$((UNINSTALL_NUM-1))]'
+                else
+                    echo "  Uninstall cancelled."
+                fi
+                if [ ${#EXISTING_AGENTS[@]} -eq 0 ]; then
+                    echo "  No agents remaining. Continuing with new install..."
+                    break
+                fi
+                echo ""
+                echo "  Remaining agents:"
+                idx=1
+                for agent_dir in "${EXISTING_AGENTS[@]}"; do
+                    [ -z "$agent_dir" ] && continue
+                    echo "    ${idx}. $(basename "$agent_dir")  (${agent_dir})"
+                    idx=$((idx+1))
+                done
+                echo ""
+                echo "  [N] Install new  [U] Uninstall another  [Q] Quit"
+                ;;
+            *)
+                echo "  Please enter N, U, or Q."
+                ;;
+        esac
+    done
+else
+    ok "No existing agents found"
+fi
+
+# =============================================================================
+# STEP 3: Name your agent
 # =============================================================================
 
 step "Naming your agent"
@@ -213,12 +325,12 @@ if [ -z "$DIR_NAME" ]; then
 fi
 
 # =============================================================================
-# STEP 3: Create Home
+# STEP 4: Create Home
 # =============================================================================
 
 step "Creating home directory"
 
-INSTALL_DIR="${HOME}/${DIR_NAME}"
+INSTALL_DIR="${REAL_HOME}/${DIR_NAME}"
 
 if [ -f "${INSTALL_DIR}/my-core/my-config.yaml.gpg" ] || [ -f "${INSTALL_DIR}/my-core/my-config.yaml" ]; then
     echo ""
@@ -243,6 +355,7 @@ cp "$SOURCE_DIR"/README.md "${INSTALL_DIR}/"
 
 cp "$SCRIPT_DIR"/start.sh "${INSTALL_DIR}/"
 cp "$SCRIPT_DIR"/watchdog.sh "${INSTALL_DIR}/"
+cp "$SCRIPT_DIR"/uninstall.sh "${INSTALL_DIR}/" 2>/dev/null || true
 
 MISSING_FILES=false
 for required in my-core/my-soul.md my-core/my-personality.md my-core/my-wakeup-prompt.md \
@@ -264,7 +377,7 @@ ok "Home created at ${INSTALL_DIR}"
 cd "${INSTALL_DIR}" || fail "Cannot cd into ${INSTALL_DIR}"
 
 # =============================================================================
-# STEP 4: Install System Packages
+# STEP 5: Install System Packages
 # =============================================================================
 
 step "Installing system packages"
@@ -359,7 +472,7 @@ else
 fi
 
 # =============================================================================
-# STEP 5: Cloud Providers
+# STEP 6: Cloud Providers
 # =============================================================================
 
 step "Setting up cloud providers"
@@ -646,7 +759,7 @@ if [ "$CLOUD_PROVIDERS_OK" -lt 2 ]; then
 fi
 
 # =============================================================================
-# STEP 6: Human Details
+# STEP 7: Human Details
 # =============================================================================
 
 step "Setting up your details"
@@ -708,7 +821,7 @@ if [ "$CONFIRM" != "y" ] && [ "$CONFIRM" != "Y" ]; then
 fi
 
 # =============================================================================
-# STEP 7: Write Birth Records
+# STEP 8: Write Birth Records
 # =============================================================================
 
 step "Writing birth records"
@@ -793,27 +906,30 @@ fi
 
 # Encrypt config with a random key stored securely
 AMAZO_KEY=$(head -c 32 /dev/urandom | base64)
-echo "$AMAZO_KEY" > "/root/.${DIR_NAME}-key"
-chmod 600 "/root/.${DIR_NAME}-key"
+KEY_PATH="${REAL_HOME}/.${DIR_NAME}-key"
+echo "$AMAZO_KEY" > "$KEY_PATH"
+chmod 600 "$KEY_PATH"
+chown "${REAL_USER}:${REAL_USER}" "$KEY_PATH"
 
 gpg --batch --yes --passphrase "$AMAZO_KEY" --symmetric --cipher-algo AES256 \
     -o my-core/my-config.yaml.gpg my-core/my-config.yaml 2>/dev/null
 
 if [ -f my-core/my-config.yaml.gpg ]; then
     rm -f my-core/my-config.yaml
-    ok "my-config.yaml encrypted (key at /root/.${DIR_NAME}-key)"
+    ok "my-config.yaml encrypted (key at ${KEY_PATH})"
 else
     fail "Config encryption failed."
 fi
 
-# ---- Permissions -------------------------------------------------------------
+# ---- Permissions & Ownership -------------------------------------------------
 
 chmod +x agent.py watchdog.sh start.sh my-skills/signal_human.py
+chown -R "${REAL_USER}:${REAL_USER}" "${INSTALL_DIR}"
 
-ok "Permissions set"
+ok "Permissions and ownership set (owner: ${REAL_USER})"
 
 # =============================================================================
-# STEP 8: Verification
+# STEP 9: Verification
 # =============================================================================
 
 step "Verifying installation"
@@ -858,13 +974,13 @@ if [ "$CLOUD_TEST_OK" = "false" ]; then
     warn "No cloud provider responded during verification. Agent will retry on startup."
 fi
 
-# Check watchdog in crontab
+# Check watchdog in crontab (install for the real user, not root)
 SCRIPT_PATH="$(pwd)/start.sh"
-if crontab -l 2>/dev/null | grep -qF "$SCRIPT_PATH"; then
-    ok "Auto-restart already in crontab"
+if crontab -u "$REAL_USER" -l 2>/dev/null | grep -qF "$SCRIPT_PATH"; then
+    ok "Auto-restart already in crontab for ${REAL_USER}"
 else
-    if (crontab -l 2>/dev/null; echo "@reboot /bin/bash \"${SCRIPT_PATH}\"") | crontab - 2>/dev/null; then
-        ok "Auto-restart added to crontab"
+    if (crontab -u "$REAL_USER" -l 2>/dev/null; echo "@reboot /bin/bash \"${SCRIPT_PATH}\"") | crontab -u "$REAL_USER" - 2>/dev/null; then
+        ok "Auto-restart added to ${REAL_USER}'s crontab"
     else
         warn "Could not add auto-restart to crontab. Add manually: @reboot /bin/bash \"${SCRIPT_PATH}\""
     fi
@@ -877,7 +993,7 @@ else
 fi
 
 # =============================================================================
-# STEP 9: Launch
+# STEP 10: Launch
 # =============================================================================
 
 echo ""
@@ -892,10 +1008,40 @@ echo "  Email:     ${HUMAN_EMAIL}"
 echo ""
 echo "  To stop:    pkill -f 'python3 agent.py'"
 echo "  To restart: cd ${INSTALL_DIR} && bash start.sh"
+echo "  To uninstall: bash ${INSTALL_DIR}/uninstall.sh"
 echo ""
 echo "  Starting ${AGENT_NAME}..."
 echo ""
 
-bash "${INSTALL_DIR}/start.sh" &
+DISPLAY_ENV=""
+[ -n "$DISPLAY" ] && DISPLAY_ENV="DISPLAY=$DISPLAY"
+[ -n "$XAUTHORITY" ] && DISPLAY_ENV="$DISPLAY_ENV XAUTHORITY=$XAUTHORITY"
 
-echo "  Installation complete. ${AGENT_NAME} is running."
+if [ "$REAL_USER" != "root" ] && [ -n "$DISPLAY_ENV" ]; then
+    su - "$REAL_USER" -c "cd '${INSTALL_DIR}' && env $DISPLAY_ENV bash start.sh" &
+else
+    su - "$REAL_USER" -c "cd '${INSTALL_DIR}' && bash start.sh" &
+fi
+
+sleep 2
+echo "  ${AGENT_NAME} is running."
+echo ""
+
+# =============================================================================
+# STEP 11: Cleanup source files
+# =============================================================================
+
+SCRIPT_DIR_CLEANUP="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE_DIR_CLEANUP="$(dirname "$(dirname "$SCRIPT_DIR_CLEANUP")")"
+
+if [ -d "$SOURCE_DIR_CLEANUP" ] && [ "$SOURCE_DIR_CLEANUP" != "$INSTALL_DIR" ] && [ -f "${SOURCE_DIR_CLEANUP}/agent.py" ]; then
+    echo ""
+    read -rp "  Remove the amazo-clone-kit source folder? (recommended) [Y/n] " CLEANUP
+    if [ "$CLEANUP" != "n" ] && [ "$CLEANUP" != "N" ]; then
+        rm -rf "$SOURCE_DIR_CLEANUP"
+        echo "  Cleaned up: ${SOURCE_DIR_CLEANUP}"
+    fi
+fi
+
+echo ""
+echo "  Installation complete."
