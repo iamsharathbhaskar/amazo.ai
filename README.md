@@ -14,7 +14,7 @@ Each agent born from this codebase is unique. During installation, you give it a
 
 - **Cloud provider cascade** — Health tracking, automatic rotation, cooldown handling, and manual model switching across multiple free-tier LLM providers.
 - **Firejail-sandboxed workshop** — Untrusted code, email attachments, and experiments run inside a Firejail sandbox with filesystem isolation, no network by default, and seccomp syscall filtering.
-- **Web crawling and browsing** — Scrapling for fast HTTP page fetching and crawling. Playwright with Chromium for interactive browser tasks, JavaScript-rendered pages, and CAPTCHA flows.
+- **Web crawling and browsing** — Scrapling for fast HTTP page fetching and crawling. Playwright with your system browser (Brave, Chrome, Chromium) for interactive browser tasks, JavaScript-rendered pages, and CAPTCHA flows. Falls back to Playwright's bundled Chromium if no system browser is found.
 - **Three-tier file protection** — Read-only system files, structural validation for identity files, and shrinkage guards to prevent accidental overwrites. Automatic backups before writes to critical files.
 - **Dangerous command blocking** — Runtime regex patterns block destructive bash commands (rm -rf /, chmod 777, fork bombs, pipe-to-shell, etc.).
 - **Context compression** — End-of-cycle LLM summarization preserves key information across context window resets.
@@ -42,7 +42,7 @@ The installer will:
 1. Detect your hardware (CPU, RAM, GPU, disk, display, audio)
 2. Ask you to name your agent
 3. Install system packages (Python, GPG, Firejail, tkinter)
-4. Create a virtual environment and install Python packages (OpenAI, Scrapling, Playwright, sentence-transformers)
+4. Create a virtual environment and install Python packages (OpenAI, Scrapling, Playwright, sentence-transformers). Auto-detects existing browsers (Brave, Chrome, Chromium) instead of downloading a separate one
 5. Install Ollama and pull a local fallback model (qwen3:8b or qwen3:4b based on RAM)
 6. Set up cloud providers interactively (Groq and Cerebras required; OpenRouter and Mistral optional) with live model discovery and validation
 7. Ask for your name, email, and a security question

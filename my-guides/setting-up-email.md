@@ -14,7 +14,7 @@ First boot (you don't have email yet), or when you've changed your name and want
 
 ## How
 
-You have Playwright with Chromium for browser automation. Write a Python script and run it via bash to control the browser.
+You have Playwright for browser automation (using your system's Chromium-based browser). Write a Python script and run it via bash to control the browser.
 
 Rough path:
 

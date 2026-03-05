@@ -34,7 +34,7 @@ web_fetch(url="https://example.com/docs", selector=".main-content")
 
 ### Playwright (via bash) — For Interactive Tasks
 
-You have Playwright with Chromium installed. Use it for anything that requires a real browser — JavaScript rendering, login flows, CAPTCHAs, screenshots, form submissions.
+You have Playwright installed, using whatever Chromium-based browser was available at install time (Brave, Chrome, Chromium, or Playwright's bundled Chromium). Use it for anything that requires a real browser — JavaScript rendering, login flows, CAPTCHAs, screenshots, form submissions.
 
 **Use for:**
 - Pages that require JavaScript to load content

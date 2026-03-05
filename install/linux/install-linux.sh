@@ -429,11 +429,25 @@ if ! python3 -c "import yaml; import openai; import sentence_transformers; impor
 fi
 ok "Python packages installed"
 
-python3 -m playwright install --with-deps chromium 2>&1 | tail -3
-ok "Playwright + Chromium installed"
+SYSTEM_BROWSER=""
+for candidate in brave brave-browser google-chrome-stable google-chrome chromium-browser chromium; do
+    if command -v "$candidate" &> /dev/null; then
+        SYSTEM_BROWSER=$(command -v "$candidate")
+        break
+    fi
+done
+
+if [ -n "$SYSTEM_BROWSER" ]; then
+    ok "System browser detected: ${SYSTEM_BROWSER}"
+    echo "export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=${SYSTEM_BROWSER}" >> .venv/bin/activate
+else
+    echo "  No system browser found. Installing Playwright Chromium..."
+    python3 -m playwright install chromium 2>&1 | tail -3
+    ok "Playwright Chromium installed"
+fi
 
 scrapling install 2>&1 | tail -3
-ok "Scrapling browsers installed"
+ok "Scrapling fetchers ready"
 
 # ---- Ollama + Local Fallback Model ------------------------------------------
 
@@ -837,7 +851,12 @@ sed -i "s|^Audio:.*|Audio: $(sed_escape "${AUDIO}")|" my-core/my-body.md
 sed -i "s|^Disk:.*|Disk: ${DISK_TOTAL} total|" my-core/my-body.md
 sed -i "s|^Birth ID:.*|Birth ID: ${BIRTH_ID}|" my-core/my-body.md
 
-TOOLS="Python ${PYTHON_VER} (venv at .venv/), sentence-transformers, Ollama running ${LOCAL_MODEL}, Playwright + Chromium, Scrapling, Firejail, tkinter"
+if [ -n "$SYSTEM_BROWSER" ]; then
+    BROWSER_DESC="Playwright (using $(basename "$SYSTEM_BROWSER"))"
+else
+    BROWSER_DESC="Playwright + Chromium"
+fi
+TOOLS="Python ${PYTHON_VER} (venv at .venv/), sentence-transformers, Ollama running ${LOCAL_MODEL}, ${BROWSER_DESC}, Scrapling, Firejail, tkinter"
 sed -i "s|^Other Tools:.*|Other Tools: $(sed_escape "$TOOLS")|" my-core/my-body.md
 
 DISK_FREE_POST=$(df -h --output=avail / 2>/dev/null | awk 'NR==2 {print $1}')
